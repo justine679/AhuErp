@@ -165,6 +165,13 @@ namespace AhuErp.UI.Infrastructure
                 now: () => DateTime.UtcNow,
                 ipProvider: () => "127.0.0.1"));
 
+            // Phase 19 / Improvement #16 — архив и долговременное хранение:
+            // акты о выделении к уничтожению (DestructionActs) и сопровождающий их
+            // сервис. Должно регистрироваться ДО ReportService — он принимает
+            // IDestructionActRepository в конструкторе для отчёта по архивным актам.
+            services.AddSingleton<IDestructionActRepository, EfDestructionActRepository>();
+            services.AddSingleton<IArchiveRetentionService, ArchiveRetentionService>();
+
             services.AddSingleton<IReportService>(sp => new ReportService(
                 sp.GetRequiredService<IInventoryRepository>(),
                 sp.GetRequiredService<IDocumentRepository>(),
