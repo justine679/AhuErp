@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AhuErp UI strings, en-US (английская локализация).
+  Подцепляется параллельно Strings.resx; ResourceManager выбирает её,
+  когда Thread.CurrentThread.CurrentUICulture совпадает с en-US или
+  любой её родительской культурой (en). См. Strings.Designer.cs.
+-->
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <data name="Common_Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Common_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Common_Add" xml:space="preserve"><value>Add</value></data>
+  <data name="Common_Edit" xml:space="preserve"><value>Edit</value></data>
+  <data name="Common_Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Common_Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Common_Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="Common_No" xml:space="preserve"><value>No</value></data>
+
+  <data name="Login_WindowTitle" xml:space="preserve"><value>Sign in — AHU BMR</value></data>
+  <data name="Login_OrgShort" xml:space="preserve"><value>AHU BMR</value></data>
+  <data name="Login_OrgSubtitle" xml:space="preserve"><value>Document workflow and management accounting</value></data>
+  <data name="Login_FullNameLabel" xml:space="preserve"><value>Full name</value></data>
+  <data name="Login_PasswordLabel" xml:space="preserve"><value>Password</value></data>
+  <data name="Login_SignInButton" xml:space="preserve"><value>Sign in</value></data>
+
+  <data name="Main_WindowTitle" xml:space="preserve"><value>AhuErp — workplace</value></data>
+  <data name="Nav_Dashboard" xml:space="preserve"><value>Dashboard</value></data>
+  <data name="Nav_MyDesktop" xml:space="preserve"><value>My desktop</value></data>
+  <data name="Nav_Journal" xml:space="preserve"><value>Document journal</value></data>
+  <data name="Nav_MyTasks" xml:space="preserve"><value>My tasks</value></data>
+  <data name="Nav_Warehouse" xml:space="preserve"><value>Warehouse / nomenclature</value></data>
+  <data name="Nav_Fleet" xml:space="preserve"><value>Fleet</value></data>
+  <data name="Nav_Archive" xml:space="preserve"><value>Archive</value></data>
+  <data name="Nav_ItService" xml:space="preserve"><value>IT service</value></data>
+  <data name="Nav_AuditJournal" xml:space="preserve"><value>Audit</value></data>
+  <data name="Nav_Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Nav_Logout" xml:space="preserve"><value>Sign out</value></data>
+
+  <data name="Error_FatalTitle" xml:space="preserve"><value>Unhandled error</value></data>
+  <data name="Error_LoginInvalidCredentials" xml:space="preserve"><value>Incorrect full name or password</value></data>
+  <data name="Error_AccountLocked" xml:space="preserve"><value>Account temporarily locked</value></data>
+  <data name="Error_AccountInactive" xml:space="preserve"><value>Account inactive</value></data>
+  <data name="Error_PasswordExpired" xml:space="preserve"><value>Password expired, contact administrator</value></data>
+</root>

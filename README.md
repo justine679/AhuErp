@@ -801,6 +801,139 @@ Terminated`, `ContractMilestoneAccepted / Rejected`,
   для `DocumentType.Contract`).
 - Email-уведомления через `IEmailGateway` (сейчас только in-app).
 
+### Phase 21 — DevEx (Improvement #18)
+
+Закрывает последний пункт roadmap'а — инфраструктурные удобства
+разработки и эксплуатации. На бизнес-логику не влияет, но даёт
+автоматический CI и базовые «крючки» для последующей локализации
+и саппорта (структурные логи без RDP-подключения к рабочей станции).
+
+**GitHub Actions CI:** `.github/workflows/ci.yml`. Триггер — `push`
+в `main`, любой `pull_request` в `main` и ручной
+`workflow_dispatch`. Раннер — `ubuntu-latest`. Шаги:
+1. `actions/checkout@v4`.
+2. `actions/setup-dotnet@v4` с `dotnet-version: 8.0.x` —
+   `dotnet` CLI достаточно для сборки net48 SDK-style проектов
+   через `Microsoft.NETFramework.ReferenceAssemblies`, поэтому
+   виртуалка Windows не нужна.
+3. NuGet-кэш через `actions/cache@v4` по хэшу
+   `**/packages.lock.json + **/*.csproj`.
+4. `dotnet restore AhuErp.sln`.
+5. `dotnet build AhuErp.sln -c Release --no-restore /warnaserror` —
+   любое предупреждение валит сборку (на `main` 0 warnings).
+6. `dotnet test AhuErp.sln -c Release --no-build --logger trx
+   /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura
+   /p:CoverletOutput=TestResults/coverage.cobertura.xml
+   /p:Exclude="[AhuErp.Core]AhuErp.Core.Migrations.*"`.
+7. `actions/upload-artifact@v4` — `.trx` логи и `coverage.cobertura.xml`.
+8. Шаг **Coverage summary** парсит из `coverage.cobertura.xml`
+   атрибуты `line-rate` / `branch-rate` и пишет таблицу в
+   `$GITHUB_STEP_SUMMARY` — видно прямо во вкладке Summary
+   запуска без скачивания артефактов.
+
+**CI badge (вверху раздела):**
+[![CI](https://github.com/justine679/AhuErp/actions/workflows/ci.yml/badge.svg)](https://github.com/justine679/AhuErp/actions/workflows/ci.yml)
+
+**Coverlet:** `coverlet.collector` + `coverlet.msbuild` 6.0.2
+подключены в `tests/AhuErp.Tests/AhuErp.Tests.csproj` с
+`PrivateAssets="all"`. msbuild-вариант выбран намеренно
+(`/p:CollectCoverage=true`), а не DataCollector
+(`--collect:"XPlat Code Coverage"`) — он надёжнее работает
+на `net48` под Linux (DataCollector в этой связке иногда падает
+с `Could not find file 'CodeCoverage.exe'`). Миграции
+(`AhuErp.Core.Migrations.*`) исключены из покрытия — это
+автогенерированный код, шумит метрику.
+
+**Локально:** `dotnet test AhuErp.sln -c Release
+/p:CollectCoverage=true /p:CoverletOutputFormat=cobertura` →
+`tests/AhuErp.Tests/TestResults/coverage.cobertura.xml`. Открыть
+HTML-отчёт можно через `reportgenerator` (`dotnet tool install
+-g dotnet-reportgenerator-globaltool`) — не входит в CI, чтобы
+не плодить артефакты, но для локального профилирования удобно.
+
+**Serilog:** статический `Log.Logger` в WPF-приложении
+(`AhuErp.UI`). Пакеты: `Serilog 3.1.1`,
+`Serilog.Sinks.File 5.0.0`, `Serilog.Sinks.Debug 2.0.0`.
+Конфигурация в `App.OnStartup()` (см. `ConfigureSerilog()`):
+- **File-sink:** `%LOCALAPPDATA%\AhuErp\logs\ahuerp-.log`, rolling
+  daily, ретенция 14 файлов, шаблон
+  `{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}`.
+  При недоступности `%LOCALAPPDATA%` (тонкий клиент / запрет на
+  запись) fallback в `%TEMP%\AhuErp\logs\` через
+  `ResolveLogDirectory()`.
+- **Debug-sink:** `Serilog.Sinks.Debug` — поток виден в
+  Visual Studio / DebugView при запуске под отладчиком.
+- В `OnExit()` обязательный `Log.CloseAndFlush()` — иначе
+  последний батч теряется при штатном выходе.
+
+**Что логируется:**
+- `Log.Information` на старте приложения.
+- `Log.Fatal` в `DispatcherUnhandledException` и
+  `AppDomain.UnhandledException` — даже если приложение
+  крашится, в логе остаётся стек.
+- `Log.Warning` в фоновых таймерах (`TickReminders`,
+  `IndexOutdated`), которые ловят все исключения, чтобы не валить
+  UI. Раньше эти catch-блоки просто глушили ошибки.
+
+Бизнес-логика в `AhuErp.Core` через Serilog **не** идёт — там
+свой `IAuditService` с цепочкой хэшей. Так разделили слои:
+UI-инфраструктура → Serilog, доменные события → audit log.
+
+**Локализация (`.resx`):** базовая инфраструктура для двух языков
+интерфейса:
+- `src/AhuErp.UI/Resources/Strings.resx` — нейтральный
+  (русский) ресурс, ~30 ключей с префиксами
+  `Common_* / Login_* / Nav_* / Error_*`.
+- `src/AhuErp.UI/Resources/Strings.en-US.resx` — английский
+  satellite-ресурс. Сборка автоматически создаёт
+  `bin/<config>/en-US/AhuErp.UI.resources.dll`.
+- `src/AhuErp.UI/Resources/Strings.Designer.cs` — статический
+  типизированный аксессор с `ResourceManager` и `Culture`.
+  Использование из XAML — через `x:Static`
+  (см. `LoginWindow.xaml`: `Title="{x:Static res:Strings.Login_WindowTitle}"`).
+
+**Переключение языка:** в `App.OnStartup()` задаётся
+`CultureInfo.DefaultThreadCurrentUICulture`; смена на `en-US`
+автоматически подхватит satellite-сборку. В UI пока нет
+переключателя — для админа достаточно изменить язык в системных
+региональных настройках Windows. В follow-up — диалог «Настройки
+языка» с сохранением выбора в `OrganizationSettings`.
+
+**Покрытие .resx:** в этой фазе мигрирован один экран
+(`LoginWindow.xaml`) как образец. Остальные XAML-формы и
+`MessageBox.Show(...)`-строки остаются хардкодом — миграция в
+follow-up по мере правок.
+
+**Семантика SQL-скриптов:**
+- `scripts/create-db.sql` синхронизирован со всеми миграциями
+  Phase 1–20: 24 секции от `Departments` до
+  `ContractMilestones`, фильтрованные уникальные индексы и
+  full-text каталог.
+- `scripts/seed-db.sql` добавлены секции **23** (Phase 19:
+  два `DestructionAct` — Approved + Executed, 8 позиций
+  `DestructionActItem`) и **24** (Phase 20: один
+  `ProcurementPlan` со статусом Published + 3 позиции, одна
+  `ProcurementProcedure` со статусом ContractSigned, один
+  `Contract` (Document TPH) со статусом Active + 3
+  `ContractMilestone`: один Accepted, два Pending). Все
+  IDENTITY_INSERT'ы парные (ON / OFF) и не пересекаются с
+  существующими ID — повторный запуск идемпотентен через
+  ранний `RETURN` в секции 0.
+
+**Что вынесено в follow-up:**
+- Codecov-интеграция / коверидж-бейдж в README (сейчас только
+  GitHub Actions status badge — Codecov требует токен и
+  отдельной настройки).
+- Переключатель языка в UI и сохранение выбора в БД.
+- Миграция остальных XAML-строк (MainWindow / Navigation /
+  диалоги ошибок / уведомления) в `Strings.resx` / `.en-US.resx`.
+- Покрытие `LoginViewModel`-сообщений ключами
+  `Error_LoginInvalidCredentials` / `Error_AccountLocked` /
+  `Error_AccountInactive` / `Error_PasswordExpired` (ключи уже
+  есть в .resx; вяжем в follow-up).
+- pre-commit hook на `dotnet format` / `dotnet build /warnaserror`
+  (сейчас проверяется только в CI).
+
 ---
 
 ## Бизнес-инварианты (проверены тестами)
