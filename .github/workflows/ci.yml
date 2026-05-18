@@ -36,6 +36,15 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # Тесты таргетят net48, и на Linux `dotnet test` запускает их через
+      # Mono. На ubuntu-latest mono не предустановлен, поэтому ставим его
+      # отдельно (без mono-complete — нужен только JIT-хост, его хватает
+      # для xunit-runner; уменьшает время установки).
+      - name: Install Mono runtime (for net48 tests)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mono-runtime mono-devel
+
       # NuGet-кэш ускоряет повторные прогонки CI: пакеты ClosedXML / EF6 /
       # PdfPig / xunit лежат в ~/.nuget/packages и переиспользуются между
       # коммитами одной ветки, инвалидируясь по hash'у *.csproj.
