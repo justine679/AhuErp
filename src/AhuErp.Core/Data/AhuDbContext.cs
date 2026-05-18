@@ -205,6 +205,12 @@ namespace AhuErp.Core.Data
             modelBuilder.Entity<Contract>()
                 .Property(c => c.ContractStatus)
                 .HasColumnName("ContractStatus");
+            // EF6 TPH автоматически даёт второму свойству с тем же именем суффикс «1»
+            // (ItTicket.CompletedAt уже занимает колонку CompletedAt с Phase 14), поэтому
+            // Contract.CompletedAt получает отдельную колонку ContractCompletedAt.
+            modelBuilder.Entity<Contract>()
+                .Property(c => c.CompletedAt)
+                .HasColumnName("ContractCompletedAt");
             modelBuilder.Entity<Contract>()
                 .HasOptional(c => c.ProcurementProcedure)
                 .WithMany()
