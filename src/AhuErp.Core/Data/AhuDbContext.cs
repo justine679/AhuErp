@@ -205,9 +205,15 @@ namespace AhuErp.Core.Data
             modelBuilder.Entity<Contract>()
                 .Property(c => c.ContractStatus)
                 .HasColumnName("ContractStatus");
-            // EF6 TPH автоматически даёт второму свойству с тем же именем суффикс «1»
-            // (ItTicket.CompletedAt уже занимает колонку CompletedAt с Phase 14), поэтому
-            // Contract.CompletedAt получает отдельную колонку ContractCompletedAt.
+            // EF6 TPH-коллизия одноимённых свойств ItTicket.CompletedAt (Phase 14) и
+            // Contract.CompletedAt (Phase 20): авто-rename выполняется ДО применения
+            // HasColumnName и присваивает "CompletedAt" одному наследнику, а другому —
+            // "CompletedAt1". После моего HasColumnName для Contract Contract уходит на
+            // ContractCompletedAt, но суффикс «1» уже навешен на ItTicket — схеме не
+            // соответствует. Поэтому пришлось явно зафиксировать ОБА свойства.
+            modelBuilder.Entity<ItTicket>()
+                .Property(t => t.CompletedAt)
+                .HasColumnName("CompletedAt");
             modelBuilder.Entity<Contract>()
                 .Property(c => c.CompletedAt)
                 .HasColumnName("ContractCompletedAt");
