@@ -22,6 +22,8 @@
  *   15) 20260509150000_AddSecurityAndAdminPhase16             (Phase 16 — безопасность/админ)
  *   16) 20260510100000_AddVehicleOsagoWaybillPhase17          (Phase 17 — ТС/ОСАГО/путевой лист)
  *   17) 20260511100000_AddBuildingsMaintenancePhase18         (Phase 18 — здания/ОС)
+ *   18) 20260512100000_AddArchiveRetentionPhase19             (Phase 19 — архив, акты уничтожения)
+ *   19) 20260513100000_AddProcurementPhase20                  (Phase 20 — закупки 44-ФЗ)
  *
  * Запуск в SQL Server Management Studio:
  *   1. Подключиться к экземпляру SQL Server (например, DESKTOP-…\SQLEXPRESS).

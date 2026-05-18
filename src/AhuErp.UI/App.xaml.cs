@@ -1,10 +1,13 @@
 using System;
+using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
 using AhuErp.Core.Services;
 using AhuErp.UI.Infrastructure;
 using AhuErp.UI.ViewModels;
+using Serilog;
+using Serilog.Events;
 
 namespace AhuErp.UI
 {
@@ -19,6 +22,14 @@ namespace AhuErp.UI
         {
             base.OnStartup(e);
 
+            // Phase 21 / Improvement #18 — структурированное логирование.
+            // Инициализируем Serilog до создания DI-контейнера, чтобы ошибки
+            // на этапе AppServices.Initialize() / EfDataSeeder тоже попали
+            // в файл. Используем статический Log.Logger — ViewModel-ы и
+            // фоновые таймеры пишут через него без отдельной DI-обёртки.
+            ConfigureSerilog();
+            Log.Information("AhuErp starting (v{Version})", typeof(App).Assembly.GetName().Version);
+
             // Любое необработанное исключение в WPF (в том числе при resolve
             // ViewModel-ов через DI и при запросах к EF6) иначе молча убивает
             // процесс. Показываем модалку с полным текстом, чтобы пользователь
@@ -29,6 +40,75 @@ namespace AhuErp.UI
             AppServices.Initialize();
 
             ShowLoginAndThenMain();
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            // Flush буфера Serilog перед закрытием приложения, иначе
+            // последние записи (в т.ч. сообщение о фатале) могут не успеть
+            // долететь до файла.
+            Log.Information("AhuErp exit (ExitCode={ExitCode})", e.ApplicationExitCode);
+            Log.CloseAndFlush();
+            base.OnExit(e);
+        }
+
+        /// <summary>
+        /// Конфигурирует <see cref="Log.Logger"/>: файл с ротацией по дню в
+        /// <c>%LOCALAPPDATA%\AhuErp\logs\ahuerp-YYYYMMDD.log</c>, fallback на
+        /// <c>%TEMP%\AhuErp\logs\</c>, плюс Debug-output (Visual Studio /
+        /// DebugView). Минимальный уровень — <see cref="LogEventLevel.Information"/>;
+        /// для EF6 / Microsoft / System источников поднят до Warning, чтобы
+        /// не засорять журнал служебной болтовнёй.
+        /// </summary>
+        private static void ConfigureSerilog()
+        {
+            var logDir = ResolveLogDirectory();
+            var template =
+                "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] " +
+                "{Message:lj}{NewLine}{Exception}";
+
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("System", LogEventLevel.Warning)
+                .Enrich.FromLogContext()
+                .WriteTo.Debug(outputTemplate: template)
+                .WriteTo.File(
+                    path: Path.Combine(logDir, "ahuerp-.log"),
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 14,
+                    shared: true,
+                    outputTemplate: template)
+                .CreateLogger();
+        }
+
+        private static string ResolveLogDirectory()
+        {
+            string root;
+            try
+            {
+                root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (string.IsNullOrWhiteSpace(root))
+                {
+                    root = Path.GetTempPath();
+                }
+            }
+            catch
+            {
+                root = Path.GetTempPath();
+            }
+
+            var dir = Path.Combine(root, "AhuErp", "logs");
+            try
+            {
+                Directory.CreateDirectory(dir);
+            }
+            catch
+            {
+                // Если каталог недоступен (нет прав / read-only тома),
+                // упадём только в Debug-sink — это не критично для UI.
+            }
+            return dir;
         }
 
         /// <summary>
@@ -82,10 +162,11 @@ namespace AhuErp.UI
                     notifications.TickReminders(DateTime.Now);
                     mainVm.RefreshUnreadCount();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Сбой фонового таймера не должен ронять UI;
-                    // диагностика идёт через журнал аудита/логирование.
+                    // Сбой фонового таймера не должен ронять UI; пишем
+                    // в Serilog, диагностика идёт через журнал аудита.
+                    Log.Warning(ex, "Reminder timer tick failed");
                 }
             };
             reminderTimer.Start();
@@ -102,9 +183,11 @@ namespace AhuErp.UI
                     var index = AppServices.GetRequiredService<ISearchIndexService>();
                     index.IndexOutdated();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // тихо проглатываем — поиск не критичный фоновый процесс.
+                    // Поиск — не критичный фоновый процесс; пишем warning
+                    // и продолжаем работу.
+                    Log.Warning(ex, "Background search index update failed");
                 }
             };
             indexTimer.Start();
@@ -113,6 +196,7 @@ namespace AhuErp.UI
 
         private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
+            Log.Fatal(e.Exception, "Unhandled exception on UI thread");
             ShowFatal(e.Exception, "UI-поток");
 
             // Если падение случилось ДО показа главного окна (например, ошибка
@@ -134,6 +218,7 @@ namespace AhuErp.UI
         {
             if (e.ExceptionObject is Exception ex)
             {
+                Log.Fatal(ex, "Unhandled exception on AppDomain (IsTerminating={IsTerminating})", e.IsTerminating);
                 ShowFatal(ex, "AppDomain");
             }
         }

@@ -774,6 +774,181 @@ INSERT INTO dbo.AuditLogs (Timestamp, UserId, ActionType, EntityType, EntityId, 
     (DATEADD(DAY,  -1, GETDATE()), 7, 60, N'DocumentSignature', 6, NULL, N'{"Kind":"Simple"}', N'ПЭП Бурдиной по ИСХ-2026-00021', NULL, NULL),
     (DATEADD(DAY,  -1, GETDATE()), 5, 33, N'DocumentTask', 1, NULL, NULL, N'Задача ИТО-2026-00091 перешла в Overdue', NULL, NULL);
 
+/* ============================================================================
+ * 23. АКТЫ УНИЧТОЖЕНИЯ (Phase 19) — два акта: один на подписи (Approved),
+ *    второй уже исполнен (Executed). Items денормализованы — индекс/название/
+ *    год дела сохранены даже если NomenclatureCases.* удалят.
+ *
+ *    DestructionStatus: Draft=0, Approved=1, Executed=2, Cancelled=3.
+ *
+ *    Идемпотентность: повторный запуск сюда не доходит из-за раннего RETURN
+ *    в секции 0.
+ * ========================================================================== */
+SET IDENTITY_INSERT dbo.DestructionActs ON;
+INSERT INTO dbo.DestructionActs (
+    Id, ActNumber, ActDate, Status, DraftedByEmployeeId, ApprovedByEmployeeId,
+    ApprovedAt, ExecutedAt, DestructionMethod, Notes
+) VALUES
+    /* 1. Утверждён директором, ждёт уничтожения */
+    (1, N'УНИЧ-2026-001', DATEADD(DAY, -14, GETDATE()), 1, 7, 1,
+     DATEADD(DAY, -10, GETDATE()), NULL,
+     N'Шредер DSB SX-12 (5-й уровень секретности)',
+     N'Акт о выделении к уничтожению документов 2018–2020 гг., не подлежащих хранению. ЭПК протокол № 4/2026 от 12.04.2026.'),
+
+    /* 2. Полностью исполнен — документы фактически уничтожены 2 недели назад */
+    (2, N'УНИЧ-2025-014', DATEADD(MONTH, -2, GETDATE()), 2, 7, 1,
+     DATEADD(MONTH, -2, DATEADD(DAY, -2, GETDATE())),
+     DATEADD(DAY, -14, GETDATE()),
+     N'Сжигание в присутствии комиссии',
+     N'Уничтожение дел переписки и тикетов ИТО за 2015–2018 гг. Комиссия в составе 3 человек (Бурдина, Стерликов, Зайченко).');
+SET IDENTITY_INSERT dbo.DestructionActs OFF;
+
+SET IDENTITY_INSERT dbo.DestructionActItems ON;
+INSERT INTO dbo.DestructionActItems (
+    Id, DestructionActId, NomenclatureCaseId, CaseIndex, CaseTitle, CaseYear,
+    RetentionYears, DocumentCount, Article, Notes
+) VALUES
+    /* Акт 1 — позиции, ждущие уничтожения */
+    (1, 1, NULL, N'02-01', N'Переписка с органами местного самоуправления',  2018, 5, 47, N'33',  N'Срок хранения 5 лет истёк в 2023 г.'),
+    (2, 1, NULL, N'02-02', N'Служебные записки',                             2018, 3, 89, N'88',  N'Срок хранения 3 года истёк в 2021 г.'),
+    (3, 1, NULL, N'03-01', N'Заявки и тикеты службы ИТО',                    2020, 3, 124, N'255', N'Срок хранения 3 года истёк в 2023 г.'),
+    (4, 1, NULL, N'02-02', N'Служебные записки',                             2019, 3, 65, N'88',  N'Срок хранения 3 года истёк в 2022 г.'),
+
+    /* Акт 2 — позиции уже уничтоженных дел */
+    (5, 2, NULL, N'02-01', N'Переписка с органами местного самоуправления',  2015, 5, 38, N'33',  NULL),
+    (6, 2, NULL, N'02-01', N'Переписка с органами местного самоуправления',  2016, 5, 41, N'33',  NULL),
+    (7, 2, NULL, N'03-01', N'Заявки и тикеты службы ИТО',                    2017, 3, 156, N'255', NULL),
+    (8, 2, NULL, N'03-01', N'Заявки и тикеты службы ИТО',                    2018, 3, 178, N'255', N'Включает черновики, не переданные в делопроизводство.');
+SET IDENTITY_INSERT dbo.DestructionActItems OFF;
+
+/* ============================================================================
+ * 24. ЗАКУПКИ ПО 44-ФЗ (Phase 20) — план-график 2026 г. + одна процедура
+ *    в стадии Awarded, заключённый контракт с двумя этапами исполнения.
+ *
+ *    ProcurementMethod:        OpenCompetition=0, OpenAuction=1, RequestForQuotations=2,
+ *                              RequestForProposals=3, SoleSupplier=4.
+ *    ProcurementPlanStatus:    Draft=0, Approved=1, Published=2, Closed=3.
+ *    ProcurementProcedureStatus: Planned=0, Announced=1, BidsCollection=2,
+ *                              BidsEvaluation=3, Awarded=4, ContractSigned=5,
+ *                              Cancelled=6, Failed=7.
+ *    ContractStatus:           Draft=0, Active=1, Completed=2, Terminated=3.
+ *    ContractMilestoneStatus:  Pending=0, Accepted=1, Rejected=2.
+ *    FundingSource:            FederalBudget=0, RegionalBudget=1, MunicipalBudget=2, OwnFunds=3.
+ *
+ *    DocumentType.Contract = 8 (см. enum DocumentType).
+ * ========================================================================== */
+SET IDENTITY_INSERT dbo.ProcurementPlans ON;
+INSERT INTO dbo.ProcurementPlans (
+    Id, PlanNumber, [Year], CreatedAt, [Status], DraftedByEmployeeId,
+    ApprovedByEmployeeId, ApprovedAt, PublishedAt, ClosedAt, Notes
+) VALUES
+    (1, N'ПЗ-2026-01', 2026, DATEADD(MONTH, -3, GETDATE()), 2,    /* Published */
+     9, 1,
+     DATEADD(MONTH, -2, GETDATE()),
+     DATEADD(MONTH, -2, DATEADD(DAY, 2, GETDATE())),
+     NULL,
+     N'План-график закупок МКУ «АХУ» БМР на 2026 год. Опубликован в ЕИС.');
+SET IDENTITY_INSERT dbo.ProcurementPlans OFF;
+
+SET IDENTITY_INSERT dbo.ProcurementPlanItems ON;
+INSERT INTO dbo.ProcurementPlanItems (
+    Id, ProcurementPlanId, LineNumber, PurchaseCode, Subject, OkpdCode,
+    MaxPrice, FundingSource, Method, PlannedQuarter, Justification
+) VALUES
+    (1, 1, 1, N'2026-643-001', N'Поставка картриджей для лазерных принтеров (Canon, HP)',
+     N'28.23.25.110', 285000.00, 2, /* MunicipalBudget */ 2, /* RequestForQuotations */ 2,
+     N'Расход тонера во 2 квартале — обеспечение текущей деятельности.'),
+    (2, 1, 2, N'2026-643-002', N'Закупка офисной бумаги формата A4 (год.потребность)',
+     N'17.12.14.110', 420000.00, 2, 2, 2,
+     N'Ежеквартальная поставка по графику.'),
+    (3, 1, 3, N'2026-643-003', N'Техническое обслуживание автопарка (5 единиц техники)',
+     N'45.20.21.000', 980000.00, 2, 0, /* OpenCompetition */ 3,
+     N'Плановое ТО и ремонт служебного автотранспорта на 3 квартал 2026 г.');
+SET IDENTITY_INSERT dbo.ProcurementPlanItems OFF;
+
+SET IDENTITY_INSERT dbo.ProcurementProcedures ON;
+INSERT INTO dbo.ProcurementProcedures (
+    Id, NoticeNumber, ProcurementPlanItemId, Method, [Status], MaxPrice,
+    NoticePublishedAt, BidsDeadline, EvaluationDate, AwardedAt,
+    ResponsibleEmployeeId, BidsReceived, Winner, WinnerInn, AwardedPrice, Notes
+) VALUES
+    (1, N'0844200006426000123', 1, 2, 5,    /* Method=RequestForQuotations, Status=ContractSigned */
+     285000.00,
+     DATEADD(DAY, -45, GETDATE()),
+     DATEADD(DAY, -38, GETDATE()),
+     DATEADD(DAY, -36, GETDATE()),
+     DATEADD(DAY, -35, GETDATE()),
+     9, /* Зайченко (закупки) */
+     3,
+     N'ООО «Канцоптторг»', N'6450123456', 269500.00,
+     N'Победитель определён по минимальной цене. Контракт подписан в ЕИС 2 недели назад.');
+SET IDENTITY_INSERT dbo.ProcurementProcedures OFF;
+
+/* Контракт = строка в dbo.Documents с DocumentDiscriminator='Contract'.
+   Должны быть заполнены и базовые поля Document, и колонки контракта. */
+SET IDENTITY_INSERT dbo.Documents ON;
+INSERT INTO dbo.Documents (
+    Id, [Type], Direction, AccessLevel, RegistrationNumber, RegistrationDate,
+    DocumentTypeRefId, NomenclatureCaseId, AuthorId, Title, Summary, Correspondent,
+    IncomingNumber, IncomingDate, CreationDate, Deadline, [Status], AssignedEmployeeId,
+    BasisDocumentId, ApprovalStatus, HasPassportScan, HasWorkBookScan, ArchiveRequestKind,
+    AffectedEquipment, ResolutionNotes,
+    AffectedEquipmentId, Kind, IsSentToVendor, VendorName, VendorTicketNumber,
+    VendorReturnDeadline, CompletedAt,
+    IsLocked, CurrentVersionAttachmentId,
+    DocumentDiscriminator,
+    /* Phase 20 — Contract TPH-колонки */
+    ContractRegistryNumber, ContractNumber, SignedAt, ExecutionStartDate,
+    ExecutionEndDate, Price, FundingSource, SupplierName, SupplierInn, SupplierKpp,
+    ProcurementProcedureId, ContractStatus, /* CompletedAt уже выше */ TerminatedAt,
+    TerminationReason
+) VALUES
+    (15, /* DocumentType.Contract = 8 */ 8, 0, 1,
+     N'КОНТР-2026-001', DATEADD(DAY, -35, GETDATE()),
+     6, 5, 9,
+     N'Контракт на поставку картриджей по 44-ФЗ',
+     N'Контракт по итогам запроса котировок № 0844200006426000123. Поставка 4 партий по графику.',
+     N'ООО «Канцоптторг»',
+     NULL, NULL, DATEADD(DAY, -40, GETDATE()), DATEADD(MONTH, 6, GETDATE()),
+     /* Document.Status = 4 (Signed) */ 4, 9,
+     NULL, 2, NULL, NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+     1, NULL,
+     N'Contract',
+     /* Phase 20 */
+     N'2026.643.000123', N'КОНТР-2026-001', DATEADD(DAY, -35, GETDATE()),
+     DATEADD(DAY, -35, GETDATE()), DATEADD(MONTH, 6, DATEADD(DAY, -35, GETDATE())),
+     269500.00, 2, /* MunicipalBudget */
+     N'ООО «Канцоптторг»', N'6450123456', N'645001001',
+     1, /* ProcurementProcedureId */ 1, /* ContractStatus=Active */
+     NULL, NULL);
+SET IDENTITY_INSERT dbo.Documents OFF;
+
+SET IDENTITY_INSERT dbo.ContractMilestones ON;
+INSERT INTO dbo.ContractMilestones (
+    Id, ContractId, SequenceNumber, Title, PlannedDate, AcceptedAt, Amount,
+    [Status], AcceptanceActNumber, Notes
+) VALUES
+    /* Этап 1 — принят, акт подписан */
+    (1, 15, 1, N'Поставка первой партии (картриджи Canon 725 — 40 шт.)',
+     DATEADD(DAY, -20, GETDATE()),
+     DATEADD(DAY, -18, GETDATE()),
+     65000.00, 1, /* Accepted */ N'АКТ-ПР-2026-001',
+     N'Принято комиссией. Расхождений нет.'),
+    /* Этап 2 — ожидает приёмки */
+    (2, 15, 2, N'Поставка второй партии (картриджи HP 78A — 24 шт.)',
+     DATEADD(DAY, 15, GETDATE()),
+     NULL,
+     58400.00, 0, /* Pending */ NULL,
+     N'По графику поставки до конца 2 квартала.'),
+    /* Этап 3 — будущий */
+    (3, 15, 3, N'Поставка третьей партии (картриджи Canon 057 — 30 шт.)',
+     DATEADD(MONTH, 2, GETDATE()),
+     NULL,
+     73100.00, 0, NULL,
+     NULL);
+SET IDENTITY_INSERT dbo.ContractMilestones OFF;
+
 PRINT N'AhuErpDb: демо-данные загружены.';
 PRINT N'Учётные записи: admin / sterlikov / dorofeev / burdina / zaychenko / volkov / petrova';
 PRINT N'Пароль: password';

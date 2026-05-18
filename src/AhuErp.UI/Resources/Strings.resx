@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AhuErp UI strings, нейтральная (русская) культура.
+
+  Phase 21 / Improvement #18 — .resx-локализация. Файл подцеплен в
+  AhuErp.UI.csproj как EmbeddedResource с явным LogicalName
+  "AhuErp.UI.Resources.Strings.resources", чтобы Strings.Designer.cs
+  обращался к нему через ResourceManager без штампа сборки.
+
+  Для альтернативной культуры добавьте параллельный файл
+  Strings.<culture>.resx (например, Strings.en-US.resx) — он будет
+  выбран автоматически по CurrentUICulture.
+
+  Ключ должен совпадать с публичным property в Strings.Designer.cs.
+-->
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <!-- Общие действия / кнопки. -->
+  <data name="Common_Save" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Отмена</value></data>
+  <data name="Common_Delete" xml:space="preserve"><value>Удалить</value></data>
+  <data name="Common_Add" xml:space="preserve"><value>Добавить</value></data>
+  <data name="Common_Edit" xml:space="preserve"><value>Редактировать</value></data>
+  <data name="Common_Refresh" xml:space="preserve"><value>Обновить</value></data>
+  <data name="Common_Close" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="Common_Yes" xml:space="preserve"><value>Да</value></data>
+  <data name="Common_No" xml:space="preserve"><value>Нет</value></data>
+
+  <!-- Login window. -->
+  <data name="Login_WindowTitle" xml:space="preserve"><value>Вход в систему — МКУ «АХУ» БМР</value></data>
+  <data name="Login_OrgShort" xml:space="preserve"><value>МКУ «АХУ» БМР</value></data>
+  <data name="Login_OrgSubtitle" xml:space="preserve"><value>Документооборот и управленческий учет</value></data>
+  <data name="Login_FullNameLabel" xml:space="preserve"><value>ФИО</value></data>
+  <data name="Login_PasswordLabel" xml:space="preserve"><value>Пароль</value></data>
+  <data name="Login_SignInButton" xml:space="preserve"><value>Войти</value></data>
+
+  <!-- Главное окно / навигация. -->
+  <data name="Main_WindowTitle" xml:space="preserve"><value>АхуЭРП — рабочее место</value></data>
+  <data name="Nav_Dashboard" xml:space="preserve"><value>Главная</value></data>
+  <data name="Nav_MyDesktop" xml:space="preserve"><value>Мой рабочий стол</value></data>
+  <data name="Nav_Journal" xml:space="preserve"><value>Журнал документов</value></data>
+  <data name="Nav_MyTasks" xml:space="preserve"><value>Мои задачи</value></data>
+  <data name="Nav_Warehouse" xml:space="preserve"><value>Склад / номенклатура</value></data>
+  <data name="Nav_Fleet" xml:space="preserve"><value>Транспорт</value></data>
+  <data name="Nav_Archive" xml:space="preserve"><value>Архив</value></data>
+  <data name="Nav_ItService" xml:space="preserve"><value>ИТО</value></data>
+  <data name="Nav_AuditJournal" xml:space="preserve"><value>Аудит</value></data>
+  <data name="Nav_Settings" xml:space="preserve"><value>Настройки</value></data>
+  <data name="Nav_Logout" xml:space="preserve"><value>Выйти</value></data>
+
+  <!-- Сообщения об ошибках. -->
+  <data name="Error_FatalTitle" xml:space="preserve"><value>Необработанная ошибка</value></data>
+  <data name="Error_LoginInvalidCredentials" xml:space="preserve"><value>Неверное ФИО или пароль</value></data>
+  <data name="Error_AccountLocked" xml:space="preserve"><value>Учётная запись временно заблокирована</value></data>
+  <data name="Error_AccountInactive" xml:space="preserve"><value>Учётная запись неактивна</value></data>
+  <data name="Error_PasswordExpired" xml:space="preserve"><value>Срок действия пароля истёк, обратитесь к администратору</value></data>
+</root>
