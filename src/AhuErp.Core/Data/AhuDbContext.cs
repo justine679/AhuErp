@@ -39,6 +39,7 @@ namespace AhuErp.Core.Data
         public virtual DbSet<Document> Documents { get; set; }
         public virtual DbSet<ArchiveRequest> ArchiveRequests { get; set; }
         public virtual DbSet<ItTicket> ItTickets { get; set; }
+        public virtual DbSet<Contract> Contracts { get; set; }
         public virtual DbSet<Vehicle> Vehicles { get; set; }
         public virtual DbSet<VehicleTrip> VehicleTrips { get; set; }
         public virtual DbSet<InventoryItem> InventoryItems { get; set; }
@@ -95,6 +96,12 @@ namespace AhuErp.Core.Data
         public virtual DbSet<DestructionAct> DestructionActs { get; set; }
         public virtual DbSet<DestructionActItem> DestructionActItems { get; set; }
 
+        // Phase 20 / Improvement #13 — закупки по 44-ФЗ: планы, процедуры, контракты, этапы.
+        public virtual DbSet<ProcurementPlan> ProcurementPlans { get; set; }
+        public virtual DbSet<ProcurementPlanItem> ProcurementPlanItems { get; set; }
+        public virtual DbSet<ProcurementProcedure> ProcurementProcedures { get; set; }
+        public virtual DbSet<ContractMilestone> ContractMilestones { get; set; }
+
         public override int SaveChanges()
         {
             ValidateDocumentRegistrationNumbers();
@@ -144,6 +151,11 @@ namespace AhuErp.Core.Data
                 {
                     m.Requires("DocumentDiscriminator").HasValue("ItTicket");
                     m.ToTable("Documents");
+                })
+                .Map<Contract>(m =>
+                {
+                    m.Requires("DocumentDiscriminator").HasValue("Contract");
+                    m.ToTable("Documents");
                 });
 
             modelBuilder.Entity<Document>()
@@ -179,6 +191,25 @@ namespace AhuErp.Core.Data
             modelBuilder.Entity<ArchiveRequest>()
                 .Property(r => r.RequestKind)
                 .HasColumnName("ArchiveRequestKind");
+
+            // ---- Phase 20 / Improvement #13 — поля контракта (TPH-наследник Document). ----
+            modelBuilder.Entity<Contract>()
+                .Property(c => c.Price)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<Contract>()
+                .Property(c => c.RegistryNumber)
+                .HasColumnName("ContractRegistryNumber");
+            modelBuilder.Entity<Contract>()
+                .Property(c => c.ContractNumber)
+                .HasColumnName("ContractNumber");
+            modelBuilder.Entity<Contract>()
+                .Property(c => c.ContractStatus)
+                .HasColumnName("ContractStatus");
+            modelBuilder.Entity<Contract>()
+                .HasOptional(c => c.ProcurementProcedure)
+                .WithMany()
+                .HasForeignKey(c => c.ProcurementProcedureId)
+                .WillCascadeOnDelete(false);
 
             modelBuilder.Entity<Vehicle>().ToTable("Vehicles");
             modelBuilder.Entity<VehicleTrip>().ToTable("VehicleTrips");
@@ -717,6 +748,57 @@ namespace AhuErp.Core.Data
                 .WithMany()
                 .HasForeignKey(i => i.NomenclatureCaseId)
                 .WillCascadeOnDelete(false);
+
+            // ---- Phase 20 / Improvement #13 — закупки по 44-ФЗ. ----
+            modelBuilder.Entity<ProcurementPlan>().ToTable("ProcurementPlans");
+            modelBuilder.Entity<ProcurementPlan>()
+                .HasRequired(p => p.DraftedByEmployee)
+                .WithMany()
+                .HasForeignKey(p => p.DraftedByEmployeeId)
+                .WillCascadeOnDelete(false);
+            modelBuilder.Entity<ProcurementPlan>()
+                .HasOptional(p => p.ApprovedByEmployee)
+                .WithMany()
+                .HasForeignKey(p => p.ApprovedByEmployeeId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<ProcurementPlanItem>().ToTable("ProcurementPlanItems");
+            modelBuilder.Entity<ProcurementPlanItem>()
+                .Property(i => i.MaxPrice)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<ProcurementPlanItem>()
+                .HasRequired(i => i.ProcurementPlan)
+                .WithMany(p => p.Items)
+                .HasForeignKey(i => i.ProcurementPlanId)
+                .WillCascadeOnDelete(true);
+
+            modelBuilder.Entity<ProcurementProcedure>().ToTable("ProcurementProcedures");
+            modelBuilder.Entity<ProcurementProcedure>()
+                .Property(p => p.MaxPrice)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<ProcurementProcedure>()
+                .Property(p => p.AwardedPrice)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<ProcurementProcedure>()
+                .HasRequired(p => p.ProcurementPlanItem)
+                .WithMany()
+                .HasForeignKey(p => p.ProcurementPlanItemId)
+                .WillCascadeOnDelete(false);
+            modelBuilder.Entity<ProcurementProcedure>()
+                .HasRequired(p => p.ResponsibleEmployee)
+                .WithMany()
+                .HasForeignKey(p => p.ResponsibleEmployeeId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<ContractMilestone>().ToTable("ContractMilestones");
+            modelBuilder.Entity<ContractMilestone>()
+                .Property(m => m.Amount)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<ContractMilestone>()
+                .HasRequired(m => m.Contract)
+                .WithMany(c => c.Milestones)
+                .HasForeignKey(m => m.ContractId)
+                .WillCascadeOnDelete(true);
 
             base.OnModelCreating(modelBuilder);
         }
