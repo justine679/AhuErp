@@ -97,6 +97,22 @@ namespace AhuErp.Core.Models
         RetentionScanCompleted = 124,
         ArchiveResponseIssued = 125,
 
+        // Phase 20 / Improvement #13 — закупки по 44-ФЗ.
+        ProcurementPlanDrafted = 130,
+        ProcurementPlanApproved = 131,
+        ProcurementPlanPublished = 132,
+        ProcurementPlanClosed = 133,
+        ProcurementProcedureCreated = 134,
+        ProcurementProcedureStatusChanged = 135,
+        ContractDrafted = 136,
+        ContractSigned = 137,
+        ContractExecutionStarted = 138,
+        ContractCompleted = 139,
+        ContractTerminated = 140,
+        ContractMilestoneAccepted = 141,
+        ContractMilestoneRejected = 142,
+        ProcurementNotificationScanCompleted = 143,
+
         Other = 99
     }
 }

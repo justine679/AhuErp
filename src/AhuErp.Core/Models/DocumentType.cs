@@ -20,6 +20,12 @@ namespace AhuErp.Core.Models
         Internal = 6,
 
         /// <summary>Архивный запрос (используется <see cref="ArchiveRequest"/>).</summary>
-        ArchiveRequest = 7
+        ArchiveRequest = 7,
+
+        /// <summary>
+        /// Контракт по 44-ФЗ (государственный или муниципальный) — используется
+        /// классом <see cref="Contract"/> (Phase 20 / Improvement #13).
+        /// </summary>
+        Contract = 8
     }
 }

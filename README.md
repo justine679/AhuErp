@@ -647,6 +647,160 @@ follow-up для `RolePolicy`.
   `DestructionAct.AttachmentId` после `GenerateDestructionAct`
   (сейчас файл сохраняется на диск, но не привязывается к акту).
 
+### Phase 20 — закупки по 44-ФЗ (Improvement #13)
+
+Закрывает требование «закупки по 44-ФЗ» из info.txt: полный жизненный
+цикл государственной / муниципальной закупки от плана-графика до
+исполнения контракта с этапами приёмки. Соответствует Федеральному
+закону № 44-ФЗ «О контрактной системе…», ст. 16 (план-график) и
+Постановлению Правительства РФ от 30.09.2019 № 1279 (формат плана).
+
+**Новые модели:**
+- `ProcurementPlan` — план-график закупок на календарный год.
+  `PlanNumber` (уникальный, 64), `Year`, `Status`
+  (`ProcurementPlanStatus`: `Draft / Approved / Published / Closed`),
+  `DraftedByEmployee` / `ApprovedByEmployee`, `ApprovedAt /
+  PublishedAt / ClosedAt`, `Notes`. **Не наследует `Document`** —
+  это планово-экономический документ, не проходящий обычный
+  РКК-маршрут.
+- `ProcurementPlanItem` — позиция плана: `ProcurementPlanId` (FK +
+  `ON DELETE CASCADE`), `LineNumber`, `PurchaseCode` (ИКЗ),
+  `Subject`, `OkpdCode`, `MaxPrice` (НМЦК), `FundingSource`,
+  `Method` (`ProcurementMethod`: `OpenTender / LimitedTender /
+  ElectronicAuction / RequestForQuotations / RequestForProposals /
+  SingleSupplier / ClosedAuction`), `PlannedQuarter` (1..4),
+  `Justification`.
+- `ProcurementProcedure` — закупочная процедура (извещение в ЕИС):
+  `NoticeNumber` (уникальный, 64), `ProcurementPlanItemId` (FK),
+  `Method`, `Status` (`ProcurementProcedureStatus`: `Planned /
+  Announced / BidsCollection / BidsEvaluation / Awarded /
+  ContractSigned / Cancelled / Failed`), `MaxPrice`,
+  `NoticePublishedAt / BidsDeadline / EvaluationDate / AwardedAt`,
+  `ResponsibleEmployee` (контрактный управляющий), `BidsReceived`,
+  `Winner / WinnerInn / AwardedPrice`. **Не наследует `Document`** —
+  это запись в реестре закупок.
+- `Contract` — государственный / муниципальный контракт. **Наследует
+  `Document`** через TPH-дискриминатор (`DocumentDiscriminator =
+  "Contract"`, `DocumentType.Contract`) — полноценный документ,
+  проходящий согласование, подписание, регистрацию в РКК и архив.
+  `RegistryNumber` (реестровый номер в ЕИС, 64),
+  `ContractNumber` (внутренний номер для бланка, 64), `SignedAt`,
+  `ExecutionStartDate / ExecutionEndDate`, `Price`, `FundingSource`,
+  `SupplierName / SupplierInn / SupplierKpp`,
+  `ProcurementProcedureId` (FK, nullable — для единственного
+  поставщика), `ContractStatus` (`Draft / Signed / InExecution /
+  Completed / Terminated`), `CompletedAt / TerminatedAt /
+  TerminationReason`.
+- `ContractMilestone` — этап исполнения контракта: `ContractId`
+  (FK + `ON DELETE CASCADE`), `SequenceNumber`, `Title`,
+  `PlannedDate`, `AcceptedAt`, `Amount`,
+  `Status` (`ContractMilestoneStatus`: `Planned / InProgress /
+  Accepted / Rejected`), `AcceptanceActNumber`, `Notes`.
+
+**`ProcurementService` — стейт-машины и аудит:**
+- *План-график:* `CreatePlan` (Draft) → `AddPlanItem` (только в
+  Draft) → `ApprovePlan` (требует ≥ 1 позиции) → `PublishPlan`
+  (после Approved; рассылает `ProcurementPlanPublished`-уведомления
+  списку сотрудников) → `ClosePlan` (из Approved или Published, но
+  не из Draft / Closed). Аудит:
+  `ProcurementPlanDrafted / Approved / Published / Closed`.
+- *Процедура:* `CreateProcedure` (Planned) → `ChangeProcedureStatus`
+  валидирует переходы по матрице (Planned → Announced →
+  BidsCollection → BidsEvaluation → Awarded → ContractSigned;
+  Cancelled / Failed из любого неконечного, кроме ContractSigned).
+  При переходе в Announced пишется `NoticePublishedAt`, в
+  BidsCollection — `BidsDeadline`, в BidsEvaluation —
+  `EvaluationDate + BidsReceived`, в Awarded —
+  `AwardedAt + Winner + WinnerInn + AwardedPrice`. Аудит:
+  `ProcurementProcedureCreated / StatusChanged`.
+- *Контракт:* `CreateContract` (Draft, `DocumentStatus.New`,
+  `DocumentType.Contract`) → `SignContract` (требует уникальный
+  `ContractNumber`, фиксирует `SignedAt + RegistryNumber`) →
+  `StartExecution` (Signed → InExecution; `ExecutionStartDate`
+  не перезаписывается, если уже задан в драфте) → `CompleteContract`
+  (InExecution → Completed, фиксирует `CompletedAt`). `TerminateContract`
+  допускается из Draft / Signed / InExecution, но не из Completed /
+  Terminated; пишет `TerminatedAt + TerminationReason`. Аудит:
+  `ContractDrafted / Signed / ExecutionStarted / Completed /
+  Terminated`.
+- *Этапы:* `AddMilestone` (запрещён для Completed / Terminated
+  контрактов, дефолт `Planned`) → `AcceptMilestone` (требует
+  `AcceptanceActNumber`, опционально перезаписывает `Amount`
+  фактом; повторный приём запрещён) / `RejectMilestone` (нельзя
+  отклонить уже принятый, причина дописывается в `Notes`). Аудит:
+  `ContractMilestoneAccepted / Rejected`.
+
+**Сканер уведомлений (`ScanUpcomingDeadlines`):**
+- Идемпотентен по логическому `now`: для каждой пары
+  (recipientId, kind, contractId) уведомление в течение
+  календарного дня создаётся ровно один раз.
+- *Этапы:* для каждого `ContractMilestone` с `PlannedDate` в окне
+  `[now.Date; now.Date + milestoneDaysAhead]` и статусом ≠ Accepted,
+  привязанного к контракту в статусе Signed / InExecution —
+  `ContractMilestoneApproaching` (по умолчанию 7 дней).
+- *Окончание исполнения:* для контракта со статусом Signed /
+  InExecution и `ExecutionEndDate ≤ now + contractDaysAhead` —
+  `ContractExecutionEndApproaching` (по умолчанию 14 дней).
+- Получатель — `AssignedEmployeeId` контракта, при отсутствии —
+  `AuthorId`. Пишет аудит-сводку
+  `ProcurementNotificationScanCompleted`.
+
+**Новые `AuditActionType` (130…143):**
+`ProcurementPlanDrafted / Approved / Published / Closed`,
+`ProcurementProcedureCreated / StatusChanged`,
+`ContractDrafted / Signed / ExecutionStarted / Completed /
+Terminated`, `ContractMilestoneAccepted / Rejected`,
+`ProcurementNotificationScanCompleted`.
+
+**Новые `NotificationKind` (20…22):**
+`ProcurementPlanPublished`, `ContractMilestoneApproaching`,
+`ContractExecutionEndApproaching`.
+
+**Миграция `AddProcurementPhase20`:**
+- Создаёт таблицы `ProcurementPlans`, `ProcurementPlanItems`
+  (`ON DELETE CASCADE` от плана), `ProcurementProcedures`,
+  `ContractMilestones` (`ON DELETE CASCADE` от контракта в
+  `Documents`) с FK / индексами / уникальными ограничениями
+  (`UQ_ProcurementPlans_PlanNumber`,
+  `UQ_ProcurementProcedures_NoticeNumber`,
+  `UQ_Contracts_ContractNumber` — фильтрованный индекс на
+  `Documents`).
+- Добавляет 15 контрактных колонок в `Documents` (TPH:
+  `RegistryNumber / ContractNumber / SignedAt /
+  ExecutionStartDate / ExecutionEndDate / Price / FundingSource /
+  SupplierName / SupplierInn / SupplierKpp /
+  ProcurementProcedureId / ContractStatus / CompletedAt /
+  TerminatedAt / TerminationReason`).
+- Параллельно отражена в `scripts/create-db.sql` (для свежих
+  установок).
+
+**DI:** в `AppServices` зарегистрированы singleton'ом
+`IProcurementPlanRepository`, `IProcurementProcedureRepository`,
+`IContractRepository`, `IContractMilestoneRepository` (EF6) и
+`IProcurementService`.
+
+**RBAC:** составление и редактирование планов / процедур /
+контрактов — `WarehouseManager / Admin` (контрактный
+управляющий = `WarehouseManager` по умолчанию); утверждение
+плана и подписание контракта — `Admin` (руководитель / зам по
+АХЧ); приёмка этапов — `WarehouseManager / Admin`. Конкретная
+привязка проверяется в UI и в follow-up для `RolePolicy`.
+
+**Что вынесено в follow-up:**
+- WPF-UI: `ProcurementPlansView` (журнал планов с фильтрами по
+  году / статусу, кнопки `Утвердить / Опубликовать / Закрыть /
+  DOCX`), `ProcurementProceduresView` (реестр процедур, мастер
+  смены статуса), `ContractsView` (реестр контрактов, таблица
+  этапов, кнопки приёмки), `ProcurementDashboard` с KPI
+  (НМЦК / экономия / просроченные этапы).
+- DOCX-печать плана-графика по форме Постановления № 1279 и
+  карточки контракта.
+- Расширение `RolePolicy` на модули `procurement-plan` /
+  `procurement-procedure` / `contract`.
+- Полнотекстовый индекс по тексту контракта (`AttachmentTextIndex`
+  для `DocumentType.Contract`).
+- Email-уведомления через `IEmailGateway` (сейчас только in-app).
+
 ---
 
 ## Бизнес-инварианты (проверены тестами)

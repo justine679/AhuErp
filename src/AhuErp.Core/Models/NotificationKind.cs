@@ -20,6 +20,11 @@ namespace AhuErp.Core.Models
         VehicleTechInspectionExpiringSoon = 11,
         VehicleMaintenanceDueSoon = 12,
 
+        // ---- Phase 20 / Improvement #13 — закупки по 44-ФЗ. ----
+        ProcurementPlanPublished = 20,
+        ContractMilestoneApproaching = 21,
+        ContractExecutionEndApproaching = 22,
+
         System = 99,
     }
 }
