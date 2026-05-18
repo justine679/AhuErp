@@ -143,17 +143,28 @@
                         Margin="0,8,0,8"
                         Command="{Binding LogoutCommand}" />
 
-                <ItemsControl ItemsSource="{Binding NavigationItems}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Style="{StaticResource NavButton}"
-                                    Content="{Binding Title}"
-                                    Visibility="{Binding IsAllowed, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                    Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                    CommandParameter="{Binding}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <!-- Список разделов завёрнут в ScrollViewer: 17+ пунктов не
+                     помещались в окно высотой 720, последние (включая «Журнал
+                     аудита» / админ-панель) обрезались по нижней границе
+                     сайдбара. Вертикальная прокрутка появляется только при
+                     переполнении, при коротком списке выглядит как обычно. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              CanContentScroll="False"
+                              Focusable="False"
+                              PanningMode="VerticalOnly">
+                    <ItemsControl ItemsSource="{Binding NavigationItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource NavButton}"
+                                        Content="{Binding Title}"
+                                        Visibility="{Binding IsAllowed, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 
