@@ -1503,8 +1503,11 @@ GO
 IF COL_LENGTH(N'dbo.Documents', N'ContractStatus') IS NULL
     ALTER TABLE dbo.Documents ADD ContractStatus INT NULL;
 GO
-IF COL_LENGTH(N'dbo.Documents', N'CompletedAt') IS NULL
-    ALTER TABLE dbo.Documents ADD CompletedAt DATETIME NULL;
+/* ContractCompletedAt — отдельная колонка для Contract.CompletedAt (TPH-наследник
+   Document). CompletedAt уже занят ItTicket.CompletedAt с Phase 14; EF6 TPH без
+   явного HasColumnName-mapping'а сгенерировал бы CompletedAt1 — а его в схеме нет. */
+IF COL_LENGTH(N'dbo.Documents', N'ContractCompletedAt') IS NULL
+    ALTER TABLE dbo.Documents ADD ContractCompletedAt DATETIME NULL;
 GO
 IF COL_LENGTH(N'dbo.Documents', N'TerminatedAt') IS NULL
     ALTER TABLE dbo.Documents ADD TerminatedAt DATETIME NULL;

@@ -20,8 +20,12 @@ namespace AhuErp.Core.Migrations
     ///     <c>ContractNumber</c>, <c>SignedAt</c>, <c>ExecutionStartDate</c>,
     ///     <c>ExecutionEndDate</c>, <c>Price</c>, <c>FundingSource</c>,
     ///     <c>SupplierName</c>, <c>SupplierInn</c>, <c>SupplierKpp</c>,
-    ///     <c>ProcurementProcedureId</c>, <c>ContractStatus</c>, <c>CompletedAt</c>,
-    ///     <c>TerminatedAt</c>, <c>TerminationReason</c>.</description></item>
+    ///     <c>ProcurementProcedureId</c>, <c>ContractStatus</c>, <c>ContractCompletedAt</c>,
+    ///     <c>TerminatedAt</c>, <c>TerminationReason</c>.
+    ///     <c>ContractCompletedAt</c> — отдельная колонка от <c>CompletedAt</c>
+    ///     (последняя занята <c>ItTicket.CompletedAt</c> с Phase 14): EF6 TPH
+    ///     не умеет совместно использовать одно физическое поле двумя свойствами
+    ///     с одинаковым именем у разных наследников.</description></item>
     ///   <item><description><c>ContractMilestones</c> — этапы исполнения
     ///     контракта (приёмочные акты): порядковый номер, описание, плановая
     ///     дата, фактическая дата приёмки, сумма, статус, номер акта приёмки.
@@ -128,7 +132,10 @@ namespace AhuErp.Core.Migrations
             AddColumn("dbo.Documents", "SupplierKpp", c => c.String(maxLength: 9));
             AddColumn("dbo.Documents", "ProcurementProcedureId", c => c.Int());
             AddColumn("dbo.Documents", "ContractStatus", c => c.Int());
-            AddColumn("dbo.Documents", "CompletedAt", c => c.DateTime());
+            // Отдельная колонка для Contract.CompletedAt: CompletedAt уже создан
+            // Phase 14 для ItTicket.CompletedAt, а EF6 TPH без явного mapping'а
+            // создаёт CompletedAt1 — не совпадает со схемой.
+            AddColumn("dbo.Documents", "ContractCompletedAt", c => c.DateTime());
             AddColumn("dbo.Documents", "TerminatedAt", c => c.DateTime());
             AddColumn("dbo.Documents", "TerminationReason", c => c.String(maxLength: 2048));
 
@@ -173,7 +180,7 @@ namespace AhuErp.Core.Migrations
             DropIndex("dbo.Documents", new[] { "ProcurementProcedureId" });
             DropColumn("dbo.Documents", "TerminationReason");
             DropColumn("dbo.Documents", "TerminatedAt");
-            DropColumn("dbo.Documents", "CompletedAt");
+            DropColumn("dbo.Documents", "ContractCompletedAt");
             DropColumn("dbo.Documents", "ContractStatus");
             DropColumn("dbo.Documents", "ProcurementProcedureId");
             DropColumn("dbo.Documents", "SupplierKpp");
